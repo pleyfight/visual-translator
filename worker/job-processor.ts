@@ -74,64 +74,119 @@ interface TranslationResult {
   targetLanguage: string
 }
 
-// OCR Service implementation
-async function performOCR(fileBuffer: Buffer, mimeType: string): Promise<OCRResult> {
+// OCR Service implementation with enhanced capabilities
+async function performOCR(fileBuffer: Buffer, mimeType: string, filename?: string): Promise<OCRResult> {
   try {
-    console.log('🔍 Starting OCR processing...')
+    console.log('🔍 Starting OCR processing for:', filename || 'unknown file')
     
-    // For now, we'll implement a mock OCR service
-    // In production, this would integrate with services like:
-    // - Google Cloud Vision API
-    // - AWS Textract
-    // - Azure Computer Vision
-    // - Tesseract.js for client-side processing
-    
-    if (env.data.OCR_SERVICE_URL) {
-      // External OCR service
+    // External OCR service integration
+    if (env.data?.OCR_SERVICE_URL) {
+      console.log('📡 Using external OCR service')
       const formData = new FormData()
-      formData.append('file', new Blob([fileBuffer], { type: mimeType }))
+      formData.append('file', new Blob([new Uint8Array(fileBuffer)], { type: mimeType }))
       
       const response = await fetch(env.data.OCR_SERVICE_URL, {
         method: 'POST',
         body: formData,
+        headers: {
+          'User-Agent': 'Visual-Translator-Worker/1.0'
+        }
       })
       
       if (!response.ok) {
-        throw new Error(`OCR service error: ${response.statusText}`)
+        const errorText = await response.text().catch(() => 'Unknown error')
+        throw new Error(`OCR service error (${response.status}): ${errorText}`)
       }
       
-      return await response.json()
-    } else {
-      // Mock OCR implementation for development
-      console.log('⚠️ Using mock OCR service for development')
-      
-      const mockText = `Sample document text extracted from ${mimeType} file.
-This is a multi-line document that would normally be processed by OCR.
-The text contains various sentences that need to be translated.
-Each block represents a different region of the document.`
-
-      const lines = mockText.split('\n').filter(line => line.trim())
-      
-      return {
-        blocks: lines.map((text, index) => ({
-          id: `block_${index + 1}`,
-          text: text.trim(),
-          confidence: 0.95 + Math.random() * 0.05, // Mock confidence 95-100%
-          bbox: {
-            x: 50 + (index * 10),
-            y: 100 + (index * 50),
-            width: 500,
-            height: 30,
-          },
-        })),
-        pages: 1,
-        language: 'en', // Mock detected language
-      }
+      const result = await response.json()
+      console.log(`✅ OCR completed: ${result.blocks?.length || 0} text blocks found`)
+      return result
     }
+    
+    // Enhanced mock OCR implementation for development and testing
+    console.log('⚠️ Using enhanced mock OCR service for development')
+    
+    // Generate more realistic mock content based on file type
+    let mockContent: string[]
+    
+    if (mimeType.includes('pdf') || mimeType.includes('document')) {
+      mockContent = [
+        "Document Title: Annual Report 2024",
+        "Executive Summary",
+        "This report presents our company's achievements and financial performance for the fiscal year 2024.",
+        "Key Performance Indicators:",
+        "• Revenue increased by 15% compared to previous year",
+        "• Customer satisfaction rate: 92%",
+        "• Market expansion into 3 new regions",
+        "Financial Overview",
+        "Total revenue: $2.5 million",
+        "Operating expenses: $1.8 million",
+        "Net profit: $700,000",
+        "Future Outlook",
+        "We project continued growth in the coming year with strategic investments in technology and talent."
+      ]
+    } else if (mimeType.includes('image')) {
+      mockContent = [
+        "Welcome to Our Store",
+        "Special Offer: 20% OFF",
+        "Valid until December 31st",
+        "Terms and conditions apply",
+        "Visit us at: www.example.com",
+        "Contact: info@example.com",
+        "Phone: +1-555-0123"
+      ]
+    } else {
+      mockContent = [
+        "Sample text document content",
+        "This is a plain text file with multiple lines",
+        "Each line represents a paragraph or section",
+        "Perfect for translation testing purposes"
+      ]
+    }
+    
+    const blocks = mockContent.map((text, index) => ({
+      id: `block_${index + 1}`,
+      text: text.trim(),
+      confidence: Math.max(0.85, 0.95 + (Math.random() * 0.05)), // 85-100% confidence
+      bbox: {
+        x: 50 + (index % 2) * 300, // Alternate column positions
+        y: 80 + (index * 45), // Vertical spacing
+        width: Math.min(text.length * 8, 400), // Dynamic width based on text length
+        height: text.includes(':') || text.includes('•') ? 25 : 35, // Different heights for headers
+      },
+    }))
+    
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000))
+    
+    const result: OCRResult = {
+      blocks,
+      pages: Math.ceil(blocks.length / 10), // Roughly 10 blocks per page
+      language: detectMockLanguage(mockContent.join(' ')), // Simple language detection
+    }
+    
+    console.log(`✅ Mock OCR completed: ${blocks.length} text blocks, ${result.pages} page(s)`)
+    return result
+    
   } catch (error) {
     console.error('❌ OCR processing failed:', error)
     throw new Error(`OCR failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
+}
+
+// Simple mock language detection based on common patterns
+function detectMockLanguage(text: string): string {
+  const lowerText = text.toLowerCase()
+  
+  // Simple heuristics for common languages
+  if (lowerText.includes('hola') || lowerText.includes('gracias') || lowerText.includes('señor')) return 'es'
+  if (lowerText.includes('bonjour') || lowerText.includes('merci') || lowerText.includes('monsieur')) return 'fr'
+  if (lowerText.includes('guten tag') || lowerText.includes('danke') || lowerText.includes('herr')) return 'de'
+  if (lowerText.includes('こんにちは') || lowerText.includes('ありがとう')) return 'ja'
+  if (lowerText.includes('你好') || lowerText.includes('谢谢')) return 'zh'
+  
+  // Default to English
+  return 'en'
 }
 
 // Gemini API translation implementation
@@ -139,7 +194,7 @@ async function translateWithGemini(request: TranslationRequest): Promise<Transla
   try {
     console.log(`🌐 Translating: "${request.text.substring(0, 50)}..." from ${request.sourceLanguage} to ${request.targetLanguage}`)
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${env.data.GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${env.data!.GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -234,7 +289,7 @@ async function handleNewJob(job: any): Promise<void> {
 
     // 3. Run OCR service
     console.log(`🔍 Running OCR on ${asset.filename}`)
-    const ocrResult = await performOCR(fileBuffer, asset.file_type)
+    const ocrResult = await performOCR(fileBuffer, asset.file_type, asset.filename)
 
     // 4. Call Gemini API for translation for each text block
     console.log(`🌐 Translating ${ocrResult.blocks.length} text blocks`)

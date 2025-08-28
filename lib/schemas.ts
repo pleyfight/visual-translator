@@ -195,3 +195,44 @@ export const validateJobRequest = (data: unknown) => {
 export const validateEnvironment = (env: unknown) => {
   return envSchema.safeParse(env);
 };
+
+// Additional schemas needed by worker
+export const jobConfigSchema = z.object({
+  sourceLanguage: languageCodeSchema,
+  targetLanguage: languageCodeSchema,
+  jobType: z.enum(['translate', 'ocr', 'analyze']).default('translate'),
+});
+
+// Analysis result schema for AI processing results
+export const analysisResultSchema = z.object({
+  originalText: z.string(),
+  translatedText: z.string(),
+  sourceLanguage: z.string(),
+  targetLanguage: z.string(),
+  confidence: z.number().min(0).max(1),
+  detectedLanguage: z.string().optional(),
+  textBlocks: z.array(z.object({
+    id: z.string(),
+    originalText: z.string(),
+    translatedText: z.string(),
+    confidence: z.number().min(0).max(1),
+    position: z.object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number(),
+      height: z.number(),
+    }),
+  })),
+  metadata: z.object({
+    ocrEngine: z.string(),
+    translationEngine: z.string(),
+    processingTime: z.number(),
+    pages: z.number(),
+    totalBlocks: z.number(),
+    documentType: z.string(),
+    filename: z.string(),
+  }),
+});
+
+export type JobConfig = z.infer<typeof jobConfigSchema>;
+export type AnalysisResult = z.infer<typeof analysisResultSchema>;

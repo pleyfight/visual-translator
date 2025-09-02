@@ -1,0 +1,46 @@
+# docker-compose.yml
+# This file orchestrates the Next.js frontend and the Node.js worker
+# for local development using Docker.
+
+version: '3.8'
+
+services:
+  # Next.js Frontend Service
+  frontend:
+    build:
+      context: . # Build context is the root of the project
+      dockerfile: Dockerfile # Uses the Dockerfile in the project root
+    ports:
+      - "3000:3000" # Map host port 3000 to container port 3000
+    volumes:
+      - .:/app # Mount the entire project directory for hot-reloading
+      - /app/node_modules # Exclude node_modules from the host mount to prevent conflicts
+    environment:
+      # Environment variables for the Next.js app.
+      # These will be picked up from a .env file in the same directory as docker-compose.yml
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NODE_ENV=development # Ensure Next.js runs in development mode
+    command: npm run dev # Override the default CMD to run the development server
+    restart: unless-stopped # Keep the service running
+
+  # Node.js Worker Service
+  worker:
+    build:
+      context: ./worker # Build context is the worker directory
+      dockerfile: Dockerfile # Uses the Dockerfile inside the worker directory
+    volumes:
+      - ./worker:/app # Mount the worker directory for hot-reloading
+      - /app/node_modules # Exclude node_modules from the host mount
+    environment:
+      # Environment variables for the worker.
+      # These will be picked up from a .env file in the same directory as docker-compose.yml
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MAX_CONCURRENT_JOBS=1 # Limit concurrency for local development
+      - NODE_ENV=development # Ensure worker runs in development mode
+    command: npm run dev # Override the default CMD to run the development worker
+    restart: unless-stopped # Keep the service running

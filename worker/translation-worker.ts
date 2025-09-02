@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * AI Translation Worker
  * 
@@ -12,7 +10,9 @@
  */
 
 import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+// Database types temporarily disabled for deployment
+import pdf from 'pdf-parse';
 
 // Server-side Supabase client with service role key
 const supabase = createClient(
@@ -37,15 +37,9 @@ interface JobConfig {
   filename: string;
 }
 
-interface Job {
-  id: string;
-  user_id: string;
-  asset_id: string;
-  job_type: 'translate' | 'ocr' | 'analyze';
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  config: JobConfig;
-  created_at: string;
-}
+type Job = Database['public']['Tables']['ai_jobs']['Row'];
+type Asset = Database['public']['Tables']['assets']['Row'];
+type AIResultInsert = Database['public']['Tables']['ai_results']['Insert'];
 
 async function updateJobStatus(jobId: string, status: string, errorMessage?: string) {
   const updateData: any = { 
@@ -128,15 +122,15 @@ ${text}`;
 }
 
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  // TODO: Implement PDF text extraction
-  // You would use a library like pdf-parse or pdf2pic + OCR
-  return "PDF text extraction not implemented yet";
+  // Using pdf-parse to extract text from PDF files
+  const data = await pdf(buffer);
+  return data.text;
 }
 
 async function extractTextFromImage(buffer: Buffer): Promise<string> {
   // TODO: Implement OCR for images
   // You could use Google Vision API, Tesseract.js, or Gemini Vision
-  return "Image OCR not implemented yet";
+  return "Mocked Image OCR text. Implement a real OCR service for production.";
 }
 
 async function extractTextFromDocument(buffer: Buffer, fileType: string): Promise<string> {
@@ -189,24 +183,26 @@ async function processTranslationJob(job: Job) {
     );
 
     // Store the result
-    const processingTime = Date.now() - startTime;
+    const processingTime = Math.floor(Date.now() - startTime);
     
+    const resultPayload: AIResultInsert = {
+      job_id: job.id,
+      result_type: 'translation',
+      result_data: {
+        original_text: extractedText,
+        translated_text: translatedText,
+        source_language: job.config.sourceLanguage,
+        target_language: job.config.targetLanguage,
+        file_type: asset.file_type,
+        filename: asset.filename
+      },
+      confidence_score: 0.95, // TODO: Get actual confidence from Gemini
+      processing_time_ms: processingTime
+    };
+
     const { error: resultError } = await supabase
       .from('ai_results')
-      .insert({
-        job_id: job.id,
-        result_type: 'translation',
-        result_data: {
-          original_text: extractedText,
-          translated_text: translatedText,
-          source_language: job.config.sourceLanguage,
-          target_language: job.config.targetLanguage,
-          file_type: asset.file_type,
-          filename: asset.filename
-        },
-        confidence_score: 0.95, // TODO: Get actual confidence from Gemini
-        processing_time_ms: processingTime
-      });
+      .insert(resultPayload);
 
     if (resultError) {
       throw new Error(`Failed to store result: ${resultError.message}`);
@@ -300,8 +296,6 @@ async function startWorker() {
 }
 
 // Start the worker if this file is run directly
-if (require.main === module) {
-  startWorker().catch(console.error);
-}
+startWorker().catch(console.error);
 
 export { processTranslationJob, startWorker };

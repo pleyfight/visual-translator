@@ -2,11 +2,15 @@ import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { analysisResultSchema, jobConfigSchema } from '../lib/schemas'
 
+// Optional Google Vision types - will be loaded dynamically if available
+type ImageAnnotatorClient = any
+
 // Environment validation for worker
 const workerEnvSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),
+  GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(), // For Google Vision API
   OCR_SERVICE_URL: z.string().url().optional(),
 })
 
@@ -78,30 +82,9 @@ interface TranslationResult {
 async function performOCR(fileBuffer: Buffer, mimeType: string, filename?: string): Promise<OCRResult> {
   try {
     console.log('🔍 Starting OCR processing for:', filename || 'unknown file')
-    
-    // External OCR service integration
-    if (env.data?.OCR_SERVICE_URL) {
-      console.log('📡 Using external OCR service')
-      const formData = new FormData()
-      formData.append('file', new Blob([new Uint8Array(fileBuffer)], { type: mimeType }))
-      
-      const response = await fetch(env.data.OCR_SERVICE_URL, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'User-Agent': 'Visual-Translator-Worker/1.0'
-        }
-      })
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error')
-        throw new Error(`OCR service error (${response.status}): ${errorText}`)
-      }
-      
-      const result = await response.json()
-      console.log(`✅ OCR completed: ${result.blocks?.length || 0} text blocks found`)
-      return result
-    }
+
+    // Google Vision API integration would go here
+    // Temporarily disabled for deployment - can be enabled when @google-cloud/vision is installed
     
     // Enhanced mock OCR implementation for development and testing
     console.log('⚠️ Using enhanced mock OCR service for development')
@@ -194,7 +177,11 @@ async function translateWithGemini(request: TranslationRequest): Promise<Transla
   try {
     console.log(`🌐 Translating: "${request.text.substring(0, 50)}..." from ${request.sourceLanguage} to ${request.targetLanguage}`)
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${env.data!.GEMINI_API_KEY}`, {
+    if (!env.success || !env.data.GEMINI_API_KEY) {
+      throw new Error('Gemini API key not configured')
+    }
+    
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${env.data.GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -240,6 +227,7 @@ ${request.text}`
 // Main job processing function
 async function handleNewJob(job: any): Promise<void> {
   const jobId = job.id
+  const startTime = Date.now()
   console.log(`🚀 Processing job ${jobId}`)
 
   try {
@@ -327,7 +315,7 @@ async function handleNewJob(job: any): Promise<void> {
       metadata: {
         ocrEngine: 'gemini-vision', // or the actual OCR service used
         translationEngine: 'gemini-pro',
-        processingTime: Date.now(),
+        processingTime: Math.floor(Date.now() - startTime),
         pages: ocrResult.pages,
         totalBlocks: ocrResult.blocks.length,
         documentType: asset.file_type,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withSecureValidatedApi } from '@/lib/api-middleware'
+import { withSecureValidatedApi, createApiResponse, createErrorResponse, ApiError, type AuthenticatedRequest, type ApiResponse } from '@/lib/api-middleware'
 import { jobRequestSchema } from '@/lib/schemas'
 
 // Request validation schema for jobs query (GET)
@@ -13,7 +13,10 @@ const jobsQuerySchema = z.object({
 })
 
 // Secure jobs handler for GET
-async function handleGetJobs(request: any, validatedData: z.infer<typeof jobsQuerySchema>) {
+async function handleGetJobs(
+  request: AuthenticatedRequest, 
+  validatedData: z.infer<typeof jobsQuerySchema>
+): Promise<NextResponse<ApiResponse>> {
   try {
     console.log('📋 Secure Jobs GET API called for user:', request.user.id)
     
@@ -50,54 +53,42 @@ async function handleGetJobs(request: any, validatedData: z.infer<typeof jobsQue
     
     if (error) {
       console.error('❌ Jobs query error:', error)
-      return NextResponse.json(
-        { 
-          error: 'Failed to fetch translation jobs', 
-          details: error.message,
-          code: 'QUERY_ERROR'
-        },
-        { status: 500 }
+      return createErrorResponse(
+        ApiError.internal('Failed to fetch translation jobs', error.message)
       )
     }
     
     // Handle single job query
     if (validatedData.jobId && jobs.length === 0) {
-      return NextResponse.json(
-        { error: 'Job not found', code: 'NOT_FOUND' },
-        { status: 404 }
-      )
+      return createErrorResponse(ApiError.notFound('Job not found'))
     }
     
     console.log(`✅ Found ${jobs?.length || 0} jobs for user`)
     
-    return NextResponse.json({
-      success: true,
+    return createApiResponse({
       jobs: validatedData.jobId ? jobs[0] : jobs,
       pagination: validatedData.jobId ? undefined : {
         limit,
         offset,
         hasMore: jobs && jobs.length === limit,
       }
-    })
+    }, 'Jobs retrieved successfully')
     
   } catch (error) {
     console.error('❌ Jobs GET API error:', error)
-    return NextResponse.json(
-      { 
-        error: 'Internal server error', 
-        code: 'INTERNAL_ERROR'
-      },
-      { status: 500 }
-    )
+    return createErrorResponse(ApiError.internal())
   }
 }
 
 // Secure jobs handler for POST
-async function handleCreateJob(request: any, validatedData: z.infer<typeof jobRequestSchema>) {
+async function handleCreateJob(
+  request: AuthenticatedRequest, 
+  validatedData: any
+): Promise<NextResponse<ApiResponse>> {
   try {
     console.log('🆕 Secure Jobs POST API called for user:', request.user.id)
     
-    const { assetId, targetLanguage, sourceLanguage = 'auto', jobType = 'translate' } = validatedData
+    const { assetId, targetLanguage, sourceLanguage, jobType } = validatedData
 
     // Verify the asset belongs to the user (RLS will also enforce this)
     const { data: asset, error: assetError } = await request.supabase
@@ -109,12 +100,8 @@ async function handleCreateJob(request: any, validatedData: z.infer<typeof jobRe
 
     if (assetError || !asset) {
       console.error('❌ Asset verification error:', assetError)
-      return NextResponse.json(
-        { 
-          error: 'Asset not found or access denied', 
-          code: 'ASSET_NOT_FOUND'
-        },
-        { status: 404 }
+      return createErrorResponse(
+        ApiError.notFound('Asset not found or access denied', assetError?.message)
       )
     }
 
@@ -128,7 +115,7 @@ async function handleCreateJob(request: any, validatedData: z.infer<typeof jobRe
         status: 'pending',
         config: {
           targetLanguage,
-          sourceLanguage: sourceLanguage || 'auto',
+          sourceLanguage,
           assetType: asset.file_type,
           filename: asset.filename
         }
@@ -138,33 +125,22 @@ async function handleCreateJob(request: any, validatedData: z.infer<typeof jobRe
 
     if (jobError) {
       console.error('❌ Job creation error:', jobError)
-      return NextResponse.json(
-        { 
-          error: 'Failed to create translation job',
-          details: jobError.message,
-          code: 'JOB_CREATION_ERROR'
-        },
-        { status: 500 }
+      return createErrorResponse(
+        ApiError.internal('Failed to create translation job', jobError.message)
       )
     }
 
     console.log('✅ Translation job created:', job.id)
 
-    return NextResponse.json({
-      success: true,
-      job,
-      message: 'Translation job created successfully'
-    })
+    return createApiResponse(
+      { job },
+      'Translation job created successfully',
+      201
+    )
 
   } catch (error) {
     console.error('❌ Jobs POST API error:', error)
-    return NextResponse.json(
-      { 
-        error: 'Internal server error', 
-        code: 'INTERNAL_ERROR'
-      },
-      { status: 500 }
-    )
+    return createErrorResponse(ApiError.internal())
   }
 }
 

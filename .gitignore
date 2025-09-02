@@ -33,3 +33,26 @@ pnpm-debug.log*
 
 # misc
 .DS_Store
+Thumbs.db
+
+# temporary and system files
+*.tmp
+*.swp
+*.swo
+*~
+
+# worker build outputs
+worker/dist/
+worker/*.js
+!worker/package.json
+
+# IDE and editor files
+*.sublime-*
+.vscode/settings.json
+.history/
+
+# OS generated files
+.DS_Store?
+Icon?
+ehthumbs.db
+Thumbs.db

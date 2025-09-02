@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { 
-  validateLanguageCode, 
-  validateUILanguage, 
   validateFileUpload,
   useFormValidation 
 } from '../validation';
+import { 
+  validateLanguageCode, 
+  validateUILanguage
+} from '../schemas';
 
 describe('Validation Functions', () => {
   describe('validateLanguageCode', () => {
@@ -40,7 +42,9 @@ describe('Validation Functions', () => {
 
   describe('validateFileUpload', () => {
     const createMockFile = (name: string, type: string, size: number): File => {
-      const blob = new Blob(['mock content'], { type });
+      // Create a buffer of the specified size filled with zeros
+      const buffer = new ArrayBuffer(size);
+      const blob = new Blob([buffer], { type });
       return new File([blob], name, { type, lastModified: Date.now() });
     };
 

@@ -1,0 +1,30 @@
+# Stage 1: Build the worker
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy root package.json and lockfile
+COPY package.json package-lock.json ./
+
+# Copy worker-specific package.json
+COPY worker/package.json ./worker/
+
+# Install all dependencies
+RUN npm install
+
+# Copy the rest of the source code
+COPY . .
+
+# Build the worker (assuming a build script in worker/package.json)
+RUN npm run build --workspace=worker
+
+# Stage 2: Create the production image
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/worker/dist ./worker/dist
+COPY --from=builder /app/worker/package.json ./worker/package.json
+
+CMD ["node", "worker/dist/job-processor.js"]

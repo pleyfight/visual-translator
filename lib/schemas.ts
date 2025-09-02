@@ -116,7 +116,7 @@ export const uploadRequestSchema = z.object({
 export const jobRequestSchema = z.object({
   assetId: z.string().uuid(),
   targetLanguage: languageCodeSchema,
-  sourceLanguage: languageCodeSchema.optional(),
+  sourceLanguage: languageCodeSchema.default('auto'),
   jobType: z.enum(['translate', 'ocr', 'analyze']).default('translate'),
 });
 

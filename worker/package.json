@@ -6,11 +6,8 @@
   "scripts": {
     "start": "node job-processor.js",
     "dev": "tsx watch job-processor.ts",
-    "dev:old": "nodemon translation-worker.js",
     "build": "tsc job-processor.ts --outDir ./dist --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports",
-    "test": "echo \"No tests yet\" && exit 0",
-    "test:setup": "node test-setup.mjs",
-    "validate": "node test-setup.mjs"
+    "test": "echo \"No tests yet\" && exit 0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",

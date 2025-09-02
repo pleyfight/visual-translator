@@ -1,5 +1,11 @@
 import { vi } from 'vitest';
 
+// Mock environment variables for testing
+process.env.NODE_ENV = 'test';
+process.env.SUPABASE_URL = 'https://test.supabase.co';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+process.env.GEMINI_API_KEY = 'test-gemini-key';
+
 // Mock localStorage
 const localStorageMock = {
   getItem: vi.fn(),

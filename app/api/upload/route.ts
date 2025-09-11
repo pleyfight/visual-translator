@@ -44,9 +44,21 @@ async function handleUpload(request: any, validatedData: z.infer<typeof uploadRe
       )
     }
     
-    // Create a unique path for the file
-    const fileExtension = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`
+    // Create a unique path for the file with secure randomness
+    const nameParts = file.name.split('.')
+    if (nameParts.length < 2) {
+      return NextResponse.json(
+        { error: 'File must have an extension', code: 'INVALID_FILENAME' },
+        { status: 400 }
+      )
+    }
+    
+    const fileExtension = nameParts.pop()!.toLowerCase()
+    
+    // Use cryptographically secure random generation
+    const randomBytes = crypto.getRandomValues(new Uint8Array(16))
+    const randomString = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('')
+    const fileName = `${Date.now()}-${randomString}.${fileExtension}`
     const storagePath = `${request.user.id}/${fileName}`
     
     // Upload file to Supabase Storage with user-specific path

@@ -64,6 +64,12 @@ export interface Translations {
   signInToStart: string;
   signInAnonymously: string;
   
+  // Job History
+  jobHistory: string;
+  source: string;
+  target: string;
+  noJobsFound: string;
+  
   // Languages (ISO codes)
   auto: string;
 }
@@ -114,6 +120,10 @@ const translations: Record<string, Translations> = {
     selectTargetLanguage: "Please select a target language",
     signInToStart: "Sign in to start translating",
     signInAnonymously: "Continue Anonymously",
+    jobHistory: "Job History",
+    source: "Source",
+    target: "Target",
+    noJobsFound: "No jobs found",
     auto: "Auto-detect",
   },
   es: {
@@ -161,6 +171,10 @@ const translations: Record<string, Translations> = {
     selectTargetLanguage: "Por favor selecciona un idioma destino",
     signInToStart: "Inicia sesión para comenzar a traducir",
     signInAnonymously: "Continuar Anónimamente",
+    jobHistory: "Historial de Trabajos",
+    source: "Fuente",
+    target: "Destino",
+    noJobsFound: "No se encontraron trabajos",
     auto: "Detectar automáticamente",
   },
   fr: {
@@ -208,6 +222,10 @@ const translations: Record<string, Translations> = {
     selectTargetLanguage: "Veuillez sélectionner une langue cible",
     signInToStart: "Connectez-vous pour commencer à traduire",
     signInAnonymously: "Continuer anonymement",
+    jobHistory: "Historique des Tâches",
+    source: "Source",
+    target: "Cible",
+    noJobsFound: "Aucune tâche trouvée",
     auto: "Détection automatique",
   },
   de: {
@@ -255,6 +273,10 @@ const translations: Record<string, Translations> = {
     selectTargetLanguage: "Bitte wählen Sie eine Zielsprache",
     signInToStart: "Melden Sie sich an, um mit der Übersetzung zu beginnen",
     signInAnonymously: "Anonym fortfahren",
+    jobHistory: "Auftragshistorie",
+    source: "Quelle",
+    target: "Ziel",
+    noJobsFound: "Keine Aufträge gefunden",
     auto: "Automatisch erkennen",
   },
 };
@@ -333,7 +355,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const fallbackToNavigatorLanguage = () => {
     // Fallback to browser language
-    const browserLang = navigator.language.split('-')[0];
+    const browserLang = navigator.language?.split('-')[0] || 'en';
     const validation = validateUILanguage(browserLang);
     const supportedLanguage = validation.success && translations[validation.data] ? validation.data : 'en';
     setValidatedLanguage(supportedLanguage);

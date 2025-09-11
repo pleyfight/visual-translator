@@ -60,6 +60,12 @@ export const translationSchema = z.object({
   signInToStart: z.string(),
   signInAnonymously: z.string(),
   
+  // Job History
+  jobHistory: z.string(),
+  source: z.string(),
+  target: z.string(),
+  noJobsFound: z.string(),
+  
   // Language codes
   auto: z.string(),
 });

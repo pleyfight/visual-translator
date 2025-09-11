@@ -1,0 +1,51 @@
+{
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "plugins": [
+    "security"
+  ],
+  "rules": {
+    // Security-specific rules
+    "security/detect-buffer-noassert": "error",
+    "security/detect-child-process": "error",
+    "security/detect-disable-mustache-escape": "error",
+    "security/detect-eval-with-expression": "error",
+    "security/detect-no-csrf-before-method-override": "error",
+    "security/detect-non-literal-fs-filename": "warn",
+    "security/detect-non-literal-regexp": "warn",
+    "security/detect-non-literal-require": "error",
+    "security/detect-object-injection": "error",
+    "security/detect-possible-timing-attacks": "warn",
+    "security/detect-pseudoRandomBytes": "error",
+    "security/detect-unsafe-regex": "error",
+    
+    // Additional security-focused rules
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-script-url": "error",
+    "no-proto": "error",
+    "no-iterator": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["child_process"],
+            "message": "child_process usage should be carefully reviewed for security"
+          },
+          {
+            "group": ["fs", "path"],
+            "message": "File system operations should be carefully reviewed"
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "node": true,
+    "browser": true,
+    "es6": true
+  }
+}

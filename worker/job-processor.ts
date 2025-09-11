@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
-import { analysisResultSchema, jobConfigSchema } from '../lib/schemas'
+import { analysisResultSchema, jobConfigSchema } from './schemas'
 
 // Optional Google Vision types - will be loaded dynamically if available
-type ImageAnnotatorClient = any
+type ImageAnnotatorClient = any;
 
 // Environment validation for worker
 const workerEnvSchema = z.object({
@@ -12,13 +12,13 @@ const workerEnvSchema = z.object({
   GEMINI_API_KEY: z.string().min(1),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(), // For Google Vision API
   OCR_SERVICE_URL: z.string().url().optional(),
-})
+});
 
 // Validate environment
-const env = workerEnvSchema.safeParse(process.env)
+const env = workerEnvSchema.safeParse(process.env);
 if (!env.success) {
-  console.error('❌ Worker environment validation failed:', env.error.errors)
-  process.exit(1)
+  console.error('❌ Worker environment validation failed:', env.error.errors);
+  process.exit(1);
 }
 
 // Create Supabase client with service role key for server operations
@@ -31,51 +31,54 @@ const supabase = createClient(
       persistSession: false,
     },
   }
-)
+);
+
+// Google Vision client - will be initialized dynamically if available
+let visionClient: ImageAnnotatorClient;
 
 // Job processing status tracking
 interface JobProcessor {
-  isRunning: boolean
-  activeJobs: Set<string>
-  maxConcurrentJobs: number
+  isRunning: boolean;
+  activeJobs: Set<string>;
+  maxConcurrentJobs: number;
 }
 
 const processor: JobProcessor = {
   isRunning: false,
   activeJobs: new Set(),
   maxConcurrentJobs: 3, // Process up to 3 jobs concurrently
-}
+};
 
 // OCR Service interface
 interface OCRResult {
   blocks: Array<{
-    id: string
-    text: string
-    confidence: number
+    id: string;
+    text: string;
+    confidence: number;
     bbox: {
-      x: number
-      y: number
-      width: number
-      height: number
-    }
-  }>
-  pages: number
-  language?: string
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+  }>;
+  pages: number;
+  language?: string;
 }
 
 // Gemini API interface
 interface TranslationRequest {
-  text: string
-  sourceLanguage: string
-  targetLanguage: string
-  context?: string
+  text: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  context?: string;
 }
 
 interface TranslationResult {
-  translatedText: string
-  confidence: number
-  sourceLanguage: string
-  targetLanguage: string
+  translatedText: string;
+  confidence: number;
+  sourceLanguage: string;
+  targetLanguage: string;
 }
 
 // OCR Service implementation with enhanced capabilities
@@ -509,6 +512,6 @@ export {
 }
 
 // Start worker if this file is run directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   startWorker()
 }
